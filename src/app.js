@@ -35,7 +35,7 @@ app.use(
   })
 );
 
-app.get("/", (req, res) => {
+app.get(["/", "/apietronic", "/apietronic/"], (req, res) => {
   res.send("Proceso API Etronic Iniciado");
 });
 
@@ -43,8 +43,10 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser());
 
-app.use("/apietronic/", authRoutes);
-app.use("/apietronic/chat", chatRoutes);
-app.use("/apietronic/admin", adminRoutes);
+// Doble montaje compatible tanto con subdominio (api.tudominio.com/apietronic/*)
+// como con subruta en Passenger de cPanel (tudominio.com/apietronic/* donde Passenger recorta el prefijo)
+app.use(["/apietronic", "/"], authRoutes);
+app.use(["/apietronic/chat", "/chat"], chatRoutes);
+app.use(["/apietronic/admin", "/admin"], adminRoutes);
 
 export default app;
