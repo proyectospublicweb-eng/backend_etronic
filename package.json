@@ -1,0 +1,42 @@
+{
+  "name": "back_etronic",
+  "version": "1.0.0",
+  "description": "Backend de Etronic",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "create-admin": "node scripts/createAdmin.mjs",
+    "set-password": "node scripts/setPassword.mjs",
+    "init-db": "node scripts/initDb.mjs",
+    "db:init:remote": "node --env-file=.env.remote scripts/initDb.mjs",
+    "db:query": "node scripts/dbQuery.mjs",
+    "db:query:remote": "node --env-file=.env.remote scripts/dbQuery.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.13.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "data/*"
+    ]
+  }
+}
