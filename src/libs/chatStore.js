@@ -8,6 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FALLBACK_DIR = path.resolve(__dirname, "../../data");
 const FALLBACK_FILE = path.join(FALLBACK_DIR, "chat-store.dat");
 
+export const AUTO_REPLY_MESSAGE =
+  "En breve momento nos contactaremos con usted por su Correo o Tel-Whatsapp 😊";
+
 let fallbackCache = null;
 
 async function loadFallbackStore() {
@@ -93,6 +96,12 @@ export async function addVisitorChatMessage({
       [convRow.idconversacion, cleanMessage]
     );
 
+    await client.query(
+      `INSERT INTO chat_mensajes (idconversacion, remitente, mensaje)
+       VALUES ($1, 'sistema', $2)`,
+      [convRow.idconversacion, AUTO_REPLY_MESSAGE]
+    );
+
     const msgsRes = await client.query(
       `SELECT idmensaje AS id, remitente, mensaje, creado_en
        FROM chat_mensajes
@@ -137,6 +146,13 @@ export async function addVisitorChatMessage({
       id: store.nextMsgId++,
       remitente: "cliente",
       mensaje: cleanMessage,
+      creado_en: nowIso,
+    });
+
+    conv.mensajes.push({
+      id: store.nextMsgId++,
+      remitente: "sistema",
+      mensaje: AUTO_REPLY_MESSAGE,
       creado_en: nowIso,
     });
 

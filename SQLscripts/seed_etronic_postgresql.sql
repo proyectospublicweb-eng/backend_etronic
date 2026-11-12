@@ -49,5 +49,12 @@ DO UPDATE SET
   password = EXCLUDED.password,
   rol = 'admin';
 
--- 5. Verificar que el administrador quedó registrado
+-- 5. Otorgar permisos completos sobre tablas y secuencias SERIAL (obligatorio en PostgreSQL de cPanel)
+GRANT USAGE ON SCHEMA public TO PUBLIC;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO PUBLIC;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO PUBLIC;
+
+-- 6. Verificar que el administrador quedó registrado
 SELECT idusuario, correoregistro, rol, creado_en FROM public.usuarios;
