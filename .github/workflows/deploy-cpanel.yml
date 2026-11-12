@@ -1,3 +1,4 @@
+# Despliegue continuo automático de Backend Etronic hacia cPanel (backend_etronic) vía HTTPS 443
 name: Validate & Deploy Backend to cPanel
 
 on:
@@ -12,146 +13,104 @@ concurrency:
 
 jobs:
   validate-and-deploy:
-    name: Validar sintaxis Node y desplegar Backend en cPanel
+    name: Validar sintaxis Node y desplegar en backend_etronic (HTTPS 443)
     runs-on: ubuntu-latest
 
     steps:
-      - name: Descargar código fuente
+      - name: 1. Descargar código fuente
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js 24
+      - name: 2. Configurar Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
-      - name: Verificar sintaxis de todos los módulos del Backend
+      - name: 3. Verificar sintaxis de todos los módulos del Backend
         run: |
           node --check index.js
           node --check loader.cjs
           find src scripts -type f \( -name "*.js" -o -name "*.mjs" -o -name "*.cjs" \) -exec node --check {} +
 
-      - name: Preparar paquete limpio y señal de reinicio Phusion Passenger (tmp/restart.txt)
-        run: |
-          mkdir -p _deploy_pkg/tmp
-          cp index.js loader.cjs package.json package-lock.json .env.example _deploy_pkg/
-          cp -r src scripts _deploy_pkg/
-          if [ -d "bitácora" ]; then cp -r "bitácora" _deploy_pkg/; fi
-          echo "Deployed commit ${GITHUB_SHA} at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > _deploy_pkg/tmp/restart.txt
-
-      - name: Desplegar Backend en cPanel y reiniciar Node automáticamente vía FTPS
+      - name: 4. Enviar archivos de Backend y reiniciar Passenger vía HTTPS (Puerto 443)
         env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN || secrets.FTP_PASSWORD }}
         run: |
-          python3 - <<'PY'
-          import ftplib
-          import os
-          import socket
-          import ssl
-          from pathlib import Path
+          node - << 'EOF'
+          const fs = require("fs");
+          const path = require("path");
 
-          host = os.environ["FTP_SERVER"].strip()
-          user = os.environ["FTP_USERNAME"].strip()
-          password = os.environ["FTP_PASSWORD"]
-          remote_root = (os.environ.get("FTP_SERVER_DIR") or "").strip().strip("/")
-          local_root = Path("_deploy_pkg")
+          const rootDir = process.cwd();
+          const files = {};
+          const includeFiles = ["package.json", "package-lock.json", "loader.cjs", "index.js", ".env.example"];
+          const includeDirs = ["src", "scripts", "bitácora"];
 
-          resolved_ip = socket.gethostbyname(host)
-          stage = f"TCP connect {resolved_ip}:21"
-          try:
-              # Verificar conectividad HTTPS 2083 desde runner de GitHub
-              with socket.create_connection((resolved_ip, 2083), timeout=5):
-                  print("::notice title=Connectivity 2083::Port 2083 reachable from GitHub Actions")
-          except Exception as e2083:
-              print(f"::notice title=Connectivity 2083::Port 2083 unreachable ({type(e2083).__name__})")
+          for (const f of includeFiles) {
+            const full = path.join(rootDir, f);
+            if (fs.existsSync(full)) {
+              files[f] = fs.readFileSync(full).toString("base64");
+            }
+          }
 
-          class ReusableTLSFTP(ftplib.FTP_TLS):
-              def ntransfercmd(self, cmd, rest=None):
-                  conn, size = ftplib.FTP.ntransfercmd(self, cmd, rest)
-                  if self._prot_p:
-                      conn = self.context.wrap_socket(
-                          conn,
-                          server_hostname=self.host,
-                          session=self.sock.session,
-                      )
-                  return conn, size
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return;
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) {
+                walk(full);
+              } else {
+                const rel = path.relative(rootDir, full).replace(/\\/g, "/");
+                files[rel] = fs.readFileSync(full).toString("base64");
+              }
+            }
+          }
+          includeDirs.forEach((d) => walk(path.join(rootDir, d)));
 
-              def makepasv(self):
-                  _pasv_host, pasv_port = super().makepasv()
-                  print(f"::notice title=FTP PASV::Server reported {_pasv_host}:{pasv_port}, connecting to {resolved_ip}:{pasv_port}")
-                  return resolved_ip, pasv_port
+          // Señal tmp/restart.txt para reinicio automático de Phusion Passenger en cPanel
+          files["tmp/restart.txt"] = Buffer.from(
+            `Deployed commit ${process.env.GITHUB_SHA || "manual"} at ${new Date().toISOString()}\n`
+          ).toString("base64");
 
-          ctx = ssl.create_default_context()
-          ctx.check_hostname = False
-          ctx.verify_mode = ssl.CERT_NONE
-          ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+          (async () => {
+            const token = (process.env.DEPLOY_TOKEN || "").trim();
+            if (!token) {
+              console.error("Falta configurar el secret DEPLOY_TOKEN en GitHub.");
+              process.exit(1);
+            }
 
-          try:
-              ftp = ReusableTLSFTP(context=ctx)
-              ftp.connect(host=resolved_ip, port=21, timeout=15)
-              print("::notice title=FTP Port 21::Connected to Pure-FTPd port 21")
-              stage = "FTPS AUTH + LOGIN"
-              ftp.auth()
-              ftp.login(user=user, passwd=password)
-              ftp.prot_p()
-              print("::notice title=FTP Login::FTPS authentication succeeded")
-              stage = "Passive Data Channel (NLST)"
+            const entries = Object.entries(files);
+            const MAX_BATCH_BYTES = 2.5 * 1024 * 1024;
+            const batches = [];
+            let currentBatch = {};
+            let currentBytes = 0;
 
-              if remote_root:
-                  for part in remote_root.split("/"):
-                      if not part:
-                          continue
-                      try:
-                          ftp.cwd(part)
-                      except ftplib.error_perm:
-                          ftp.mkd(part)
-                          ftp.cwd(part)
+            for (const [relPath, b64] of entries) {
+              const itemBytes = relPath.length + b64.length + 16;
+              if (currentBytes + itemBytes > MAX_BATCH_BYTES && Object.keys(currentBatch).length > 0) {
+                batches.push(currentBatch);
+                currentBatch = {};
+                currentBytes = 0;
+              }
+              currentBatch[relPath] = b64;
+              currentBytes += itemBytes;
+            }
+            if (Object.keys(currentBatch).length > 0) {
+              batches.push(currentBatch);
+            }
 
-              base_pwd = ftp.pwd()
-              ftp.nlst()
-              stage = "Uploading files"
-
-              ensured_dirs = set()
-
-              def ensure_remote_dir(rel_dir: str):
-                  if not rel_dir or rel_dir == "." or rel_dir in ensured_dirs:
-                      return
-                  ftp.cwd(base_pwd)
-                  current = ""
-                  for segment in rel_dir.split("/"):
-                      current = f"{current}/{segment}" if current else segment
-                      if current in ensured_dirs:
-                          ftp.cwd(segment)
-                          continue
-                      try:
-                          ftp.cwd(segment)
-                      except ftplib.error_perm:
-                          ftp.mkd(segment)
-                          ftp.cwd(segment)
-                      ensured_dirs.add(current)
-
-              uploaded = 0
-              for file_path in sorted(local_root.rglob("*")):
-                  if not file_path.is_file():
-                      continue
-                  rel = file_path.relative_to(local_root).as_posix()
-                  if rel in {".env", ".htaccess"} or rel.startswith("node_modules/") or rel.startswith("data/"):
-                      continue
-                  parent = os.path.dirname(rel)
-                  fname = os.path.basename(rel)
-                  ensure_remote_dir(parent)
-                  target_dir = f"{base_pwd.rstrip('/')}/{parent}" if parent else base_pwd
-                  ftp.cwd(target_dir)
-                  with file_path.open("rb") as fh:
-                      ftp.storbinary(f"STOR {fname}", fh)
-                  uploaded += 1
-
-              ftp.quit()
-              print(f"::notice title=Deploy OK::Uploaded {uploaded} files and triggered Passenger restart")
-          except Exception as exc:
-              import sys
-              print(f"::error title=Failed at {stage}::{type(exc).__name__}: {exc}")
-              sys.exit(1)
-          PY
+            console.log(`Enviando ${entries.length} archivos de Backend en ${batches.length} lote(s) a https://etronic.com.mx/deploy-hook.php ...`);
+            for (let i = 0; i < batches.length; i++) {
+              const batch = batches[i];
+              const res = await fetch("https://etronic.com.mx/deploy-hook.php", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Deploy-Token": token,
+                },
+                body: JSON.stringify({ target: "backend", files: batch }),
+              });
+              const text = await res.text();
+              console.log(`Lote ${i + 1} HTTP ${res.status}:`, text);
+              if (!res.ok) process.exit(1);
+            }
+          })();
+          EOF
