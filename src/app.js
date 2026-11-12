@@ -42,21 +42,18 @@ app.get(["/", "/apietronic", "/apietronic/"], (req, res) => {
 
 app.get(["/health", "/apietronic/health"], async (req, res) => {
   try {
-    const dbCheck = await pool.query("SELECT COUNT(*)::int AS total FROM usuarios");
+    await pool.query("SELECT 1");
     res.json({
       ok: true,
+      service: "backend_etronic",
       dbConnected: true,
-      usuariosEnBd: dbCheck.rows[0]?.total ?? 0,
-      hasDbName: Boolean(process.env.DB_NAME || process.env.DATABASE_URL),
     });
   } catch (err) {
     res.status(500).json({
       ok: false,
+      service: "backend_etronic",
       dbConnected: false,
       code: err.code || "DB_ERROR",
-      message: err.message,
-      hasDbName: Boolean(process.env.DB_NAME || process.env.DATABASE_URL),
-      hasDbUser: Boolean(process.env.DB_USER || process.env.DATABASE_URL),
     });
   }
 });

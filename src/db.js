@@ -5,6 +5,15 @@ const { Pool } = pg;
 
 const isProduction = process.env.NODE_ENV === "production";
 
+function normalizeHost(rawHost) {
+  const cleaned = String(rawHost || "127.0.0.1").trim();
+  // En cPanel, pg_hba.conf autoriza IPv4 (127.0.0.1) y puede rechazar IPv6 (::1) al resolver "localhost"
+  if (/^(localhost|::1)$/i.test(cleaned)) {
+    return "127.0.0.1";
+  }
+  return cleaned;
+}
+
 function resolveSslConfig(hostOrUrl) {
   // Permite forzar o desactivar SSL explícitamente mediante DB_SSL=true|false
   if (typeof process.env.DB_SSL === "string" && process.env.DB_SSL.trim() !== "") {
@@ -14,8 +23,8 @@ function resolveSslConfig(hostOrUrl) {
   }
 
   // En cPanel, el servidor PostgreSQL interno (localhost / 127.0.0.1) no usa SSL
-  const target = String(hostOrUrl || "localhost").trim();
-  const isLocalHost = /(^localhost$|^127\.0\.0\.1$|@localhost[:/]|@127\.0\.0\.1[:/])/i.test(
+  const target = String(hostOrUrl || "127.0.0.1").trim();
+  const isLocalHost = /(^localhost$|^127\.0\.0\.1$|^::1$|@localhost[:/]|@127\.0\.0\.1[:/])/i.test(
     target
   );
   if (isLocalHost) {
@@ -27,16 +36,23 @@ function resolveSslConfig(hostOrUrl) {
     : false;
 }
 
-export const pool = process.env.DATABASE_URL
+const rawDbUrl = (process.env.DATABASE_URL || "").trim();
+const dbHost = normalizeHost(process.env.DB_HOST);
+const dbPort = Number(String(process.env.DB_PORT || "5432").trim()) || 5432;
+const dbUser = (process.env.DB_USER || "").trim();
+const dbPassword = (process.env.DB_PASSWORD || "").trim();
+const dbName = (process.env.DB_NAME || "").trim();
+
+export const pool = rawDbUrl
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: resolveSslConfig(process.env.DATABASE_URL),
+      connectionString: rawDbUrl,
+      ssl: resolveSslConfig(rawDbUrl),
     })
   : new Pool({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT) || 5432,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      ssl: resolveSslConfig(process.env.DB_HOST),
+      host: dbHost,
+      port: dbPort,
+      user: dbUser,
+      password: dbPassword,
+      database: dbName,
+      ssl: resolveSslConfig(dbHost),
     });
