@@ -110,7 +110,14 @@ jobs:
               });
               const text = await res.text();
               console.log(`Lote ${i + 1} HTTP ${res.status}:`, text);
-              if (!res.ok) process.exit(1);
+              let parsed = null;
+              try {
+                parsed = JSON.parse(text);
+              } catch {
+                console.error("Respuesta no es JSON válido de deploy-hook.php.");
+                process.exit(1);
+              }
+              if (!res.ok || !parsed || parsed.ok !== true) process.exit(1);
             }
           })();
           EOF
