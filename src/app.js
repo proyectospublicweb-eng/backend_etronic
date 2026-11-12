@@ -6,6 +6,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import { pool } from "./db.js";
 
 const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
   .split(",")
@@ -37,6 +38,27 @@ app.use(
 
 app.get(["/", "/apietronic", "/apietronic/"], (req, res) => {
   res.send("Proceso API Etronic Iniciado");
+});
+
+app.get(["/health", "/apietronic/health"], async (req, res) => {
+  try {
+    const dbCheck = await pool.query("SELECT COUNT(*)::int AS total FROM usuarios");
+    res.json({
+      ok: true,
+      dbConnected: true,
+      usuariosEnBd: dbCheck.rows[0]?.total ?? 0,
+      hasDbName: Boolean(process.env.DB_NAME || process.env.DATABASE_URL),
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      dbConnected: false,
+      code: err.code || "DB_ERROR",
+      message: err.message,
+      hasDbName: Boolean(process.env.DB_NAME || process.env.DATABASE_URL),
+      hasDbUser: Boolean(process.env.DB_USER || process.env.DATABASE_URL),
+    });
+  }
 });
 
 app.use(morgan("dev"));
