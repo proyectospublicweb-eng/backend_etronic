@@ -39,7 +39,6 @@ jobs:
           echo "Deployed commit ${GITHUB_SHA} at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > _deploy_pkg/tmp/restart.txt
 
       - name: Desplegar Backend en cPanel y reiniciar Node automáticamente vía FTP/FTPS
-        if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
