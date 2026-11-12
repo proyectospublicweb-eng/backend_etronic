@@ -59,7 +59,13 @@ jobs:
           local_root = Path("_deploy_pkg")
 
           resolved_ip = socket.gethostbyname(host)
-          print(f"[1/4] Conectando por TCP a {host} ({resolved_ip}:21)...")
+          stage = f"TCP connect {resolved_ip}:21"
+          try:
+              # Verificar conectividad HTTPS 2083 desde runner de GitHub
+              with socket.create_connection((resolved_ip, 2083), timeout=5):
+                  print("::notice title=Connectivity 2083::Port 2083 reachable from GitHub Actions")
+          except Exception as e2083:
+              print(f"::notice title=Connectivity 2083::Port 2083 unreachable ({type(e2083).__name__})")
 
           class ReusableTLSFTP(ftplib.FTP_TLS):
               def ntransfercmd(self, cmd, rest=None):
@@ -74,73 +80,78 @@ jobs:
 
               def makepasv(self):
                   _pasv_host, pasv_port = super().makepasv()
+                  print(f"::notice title=FTP PASV::Server reported {_pasv_host}:{pasv_port}, connecting to {resolved_ip}:{pasv_port}")
                   return resolved_ip, pasv_port
 
           ctx = ssl.create_default_context()
           ctx.check_hostname = False
           ctx.verify_mode = ssl.CERT_NONE
-          # TLS 1.2 garantiza soporte de session reuse en Pure-FTPd
           ctx.maximum_version = ssl.TLSVersion.TLSv1_2
 
-          ftp = ReusableTLSFTP(context=ctx)
-          ftp.connect(host=resolved_ip, port=21, timeout=25)
-          print(f"[2/4] Banner recibido: {ftp.getwelcome().splitlines()[0]}")
-          ftp.auth()
-          ftp.login(user=user, passwd=password)
-          ftp.prot_p()
-          print("[3/4] Autenticación FTPS exitosa. Verificando canal pasivo de datos...")
+          try:
+              ftp = ReusableTLSFTP(context=ctx)
+              ftp.connect(host=resolved_ip, port=21, timeout=15)
+              print("::notice title=FTP Port 21::Connected to Pure-FTPd port 21")
+              stage = "FTPS AUTH + LOGIN"
+              ftp.auth()
+              ftp.login(user=user, passwd=password)
+              ftp.prot_p()
+              print("::notice title=FTP Login::FTPS authentication succeeded")
+              stage = "Passive Data Channel (NLST)"
 
-          if remote_root:
-              for part in remote_root.split("/"):
-                  if not part:
+              if remote_root:
+                  for part in remote_root.split("/"):
+                      if not part:
+                          continue
+                      try:
+                          ftp.cwd(part)
+                      except ftplib.error_perm:
+                          ftp.mkd(part)
+                          ftp.cwd(part)
+
+              base_pwd = ftp.pwd()
+              ftp.nlst()
+              stage = "Uploading files"
+
+              ensured_dirs = set()
+
+              def ensure_remote_dir(rel_dir: str):
+                  if not rel_dir or rel_dir == "." or rel_dir in ensured_dirs:
+                      return
+                  ftp.cwd(base_pwd)
+                  current = ""
+                  for segment in rel_dir.split("/"):
+                      current = f"{current}/{segment}" if current else segment
+                      if current in ensured_dirs:
+                          ftp.cwd(segment)
+                          continue
+                      try:
+                          ftp.cwd(segment)
+                      except ftplib.error_perm:
+                          ftp.mkd(segment)
+                          ftp.cwd(segment)
+                      ensured_dirs.add(current)
+
+              uploaded = 0
+              for file_path in sorted(local_root.rglob("*")):
+                  if not file_path.is_file():
                       continue
-                  try:
-                      ftp.cwd(part)
-                  except ftplib.error_perm:
-                      ftp.mkd(part)
-                      ftp.cwd(part)
-
-          base_pwd = ftp.pwd()
-          print(f"      Directorio remoto activo: {base_pwd}")
-          # Prueba inmediata del canal de datos pasivo
-          ftp.nlst()
-          print("      Canal de datos pasivo verificado OK.")
-
-          ensured_dirs = set()
-
-          def ensure_remote_dir(rel_dir: str):
-              if not rel_dir or rel_dir == "." or rel_dir in ensured_dirs:
-                  return
-              ftp.cwd(base_pwd)
-              current = ""
-              for segment in rel_dir.split("/"):
-                  current = f"{current}/{segment}" if current else segment
-                  if current in ensured_dirs:
-                      ftp.cwd(segment)
+                  rel = file_path.relative_to(local_root).as_posix()
+                  if rel in {".env", ".htaccess"} or rel.startswith("node_modules/") or rel.startswith("data/"):
                       continue
-                  try:
-                      ftp.cwd(segment)
-                  except ftplib.error_perm:
-                      ftp.mkd(segment)
-                      ftp.cwd(segment)
-                  ensured_dirs.add(current)
+                  parent = os.path.dirname(rel)
+                  fname = os.path.basename(rel)
+                  ensure_remote_dir(parent)
+                  target_dir = f"{base_pwd.rstrip('/')}/{parent}" if parent else base_pwd
+                  ftp.cwd(target_dir)
+                  with file_path.open("rb") as fh:
+                      ftp.storbinary(f"STOR {fname}", fh)
+                  uploaded += 1
 
-          uploaded = 0
-          for file_path in sorted(local_root.rglob("*")):
-              if not file_path.is_file():
-                  continue
-              rel = file_path.relative_to(local_root).as_posix()
-              if rel in {".env", ".htaccess"} or rel.startswith("node_modules/") or rel.startswith("data/"):
-                  continue
-              parent = os.path.dirname(rel)
-              fname = os.path.basename(rel)
-              ensure_remote_dir(parent)
-              target_dir = f"{base_pwd.rstrip('/')}/{parent}" if parent else base_pwd
-              ftp.cwd(target_dir)
-              with file_path.open("rb") as fh:
-                  ftp.storbinary(f"STOR {fname}", fh)
-              uploaded += 1
-
-          ftp.quit()
-          print(f"[4/4] Despliegue completado: {uploaded} archivos sincronizados y tmp/restart.txt actualizado.")
+              ftp.quit()
+              print(f"::notice title=Deploy OK::Uploaded {uploaded} files and triggered Passenger restart")
+          except Exception as exc:
+              import sys
+              print(f"::error title=Failed at {stage}::{type(exc).__name__}: {exc}")
+              sys.exit(1)
           PY
