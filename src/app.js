@@ -6,6 +6,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import plannerRoutes from "./routes/planner.routes.js";
 import { pool } from "./db.js";
 
 const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
@@ -66,6 +67,7 @@ app.use(cookieParser());
 // como con subruta en Passenger de cPanel (tudominio.com/apietronic/* donde Passenger recorta el prefijo)
 app.use(["/apietronic", "/"], authRoutes);
 app.use(["/apietronic/chat", "/chat"], chatRoutes);
+app.use(["/apietronic/planner", "/planner"], plannerRoutes);
 app.use(["/apietronic/admin", "/admin"], adminRoutes);
 
 export default app;

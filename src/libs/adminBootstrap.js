@@ -185,6 +185,20 @@ export async function ensureDatabaseAndAdmin() {
         mensaje            TEXT         NOT NULL,
         creado_en          TIMESTAMP    NOT NULL DEFAULT now()
       );
+
+      CREATE TABLE IF NOT EXISTS planificador_registros (
+        idregistro           SERIAL PRIMARY KEY,
+        nombre               VARCHAR(140) NOT NULL,
+        telefono_whatsapp    VARCHAR(180) NOT NULL DEFAULT '',
+        total_seleccionadas  INTEGER      NOT NULL DEFAULT 0,
+        resumen_servicios    JSONB        NOT NULL DEFAULT '[]'::jsonb,
+        comentarios          TEXT         NOT NULL DEFAULT '',
+        estado               VARCHAR(30)  NOT NULL DEFAULT 'pendiente',
+        notas_seguimiento    TEXT         NOT NULL DEFAULT '',
+        creado_en            TIMESTAMP    NOT NULL DEFAULT now(),
+        actualizado_en       TIMESTAMP    NOT NULL DEFAULT now()
+      );
+      ALTER TABLE planificador_registros ALTER COLUMN telefono_whatsapp TYPE VARCHAR(180);
     `);
 
     if (passwordHash) {

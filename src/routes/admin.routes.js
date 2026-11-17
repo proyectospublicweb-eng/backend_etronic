@@ -9,6 +9,7 @@ import {
   updateChatAdminSchema,
   replyChatAdminSchema,
 } from "../schemas/chat.schema.js";
+import { updatePlannerAdminSchema } from "../schemas/planner.schema.js";
 import {
   getDashboardStats,
   listUsers,
@@ -22,6 +23,11 @@ import {
   postAdminChatReply,
   deleteAdminChat,
 } from "../controllers/chat.controller.js";
+import {
+  getAdminPlannerSubmissions,
+  patchAdminPlannerSubmission,
+  deleteAdminPlannerSubmission,
+} from "../controllers/planner.controller.js";
 
 const router = Router();
 
@@ -50,5 +56,14 @@ router.post(
   postAdminChatReply
 );
 router.delete("/chats/:id", deleteAdminChat);
+
+// Planificador de proyectos (Registros de clientes)
+router.get("/planner", getAdminPlannerSubmissions);
+router.patch(
+  "/planner/:id",
+  validateSchema(updatePlannerAdminSchema),
+  patchAdminPlannerSubmission
+);
+router.delete("/planner/:id", deleteAdminPlannerSubmission);
 
 export default router;

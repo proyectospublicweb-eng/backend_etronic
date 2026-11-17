@@ -36,6 +36,20 @@ CREATE TABLE IF NOT EXISTS public.chat_mensajes (
   creado_en          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 3b. Tabla de registros del Planificador de Proyecto
+CREATE TABLE IF NOT EXISTS public.planificador_registros (
+  idregistro           SERIAL PRIMARY KEY,
+  nombre               VARCHAR(140) NOT NULL,
+  telefono_whatsapp    VARCHAR(180) NOT NULL DEFAULT '',
+  total_seleccionadas  INTEGER      NOT NULL DEFAULT 0,
+  resumen_servicios    JSONB        NOT NULL DEFAULT '[]'::jsonb,
+  comentarios          TEXT         NOT NULL DEFAULT '',
+  estado               VARCHAR(30)  NOT NULL DEFAULT 'pendiente',
+  notas_seguimiento    TEXT         NOT NULL DEFAULT '',
+  creado_en            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 4. Insertar cuenta administradora principal (contraseña encriptada con bcrypt)
 INSERT INTO public.usuarios (correoregistro, password, rol, token_version)
 VALUES (
