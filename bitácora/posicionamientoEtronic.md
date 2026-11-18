@@ -21,35 +21,26 @@
   - Tarjetas enriquecidas **Open Graph (`og:*`)** y **Twitter (`twitter:card`)** usando `https://etronic.com.mx/images/hero-3d-tech.jpg` para vista previa visual en **WhatsApp, LinkedIn, Facebook y X**.
   - Datos estructurados **Schema.org (`@graph`: `Organization` + `ProfessionalService` + catálogo de 5 servicios)** para comprensión por motores alternativos e IA.
   - Título dinámico en `/planificador` (`"Planificador de Proyecto | ETRONIC"`).
-- [ ] **1.5 Subir cambios a GitHub y desplegar en producción (`etronic.com.mx`)**
-  - Confirmar `git commit` + `git push` de `Frontend` y verificar que carguen en producción:
-    - `https://etronic.com.mx/robots.txt`
-    - `https://etronic.com.mx/sitemap.xml`
-    - `https://etronic.com.mx/8f3c9b2e4d1a7c605e82a914b7d3c6f0.txt`
+- [x] **1.5 Subir cambios a GitHub y desplegar en producción (`etronic.com.mx`)**
+  - Publicados commits (`Frontend`: `cd90fdb`, `Backend`: `24aa292`) y verificados en vivo (`200 OK` el `2026-11-18`):
+    - `https://etronic.com.mx/robots.txt` (`200 OK`)
+    - `https://etronic.com.mx/sitemap.xml` (`200 OK`)
+    - `https://etronic.com.mx/8f3c9b2e4d1a7c605e82a914b7d3c6f0.txt` (`200 OK`)
+    - `https://etronic.com.mx/planificador` (`200 OK`)
 
 ---
 
 ## Fase 2 — Buscadores Alternativos e Inteligencia Artificial (`$0` · Tras Desplegar)
 
-- [ ] **2.1 Alta en Bing Webmaster Tools** (`https://www.bing.com/webmasters`)
-  - Iniciar sesión con cuenta Microsoft corporativa.
-  - Agregar sitio `https://etronic.com.mx` y verificar propiedad (meta tag, archivo XML o registro DNS CNAME/TXT en cPanel).
-  - Enviar mapa del sitio: `https://etronic.com.mx/sitemap.xml`.
+- [ ] **2.1 Alta en Bing Webmaster Tools** (`https://www.bing.com/webmasters`) *(Cuenta creada; falta verificar tras desplegar `msvalidate.01`)*
+  - Metaetiqueta de verificación agregada en `Frontend/index.html` (`<meta name="msvalidate.01" content="5DBCEC29BEBF5D8A9654710D6A301AFE" />`).
+  - Siguiente: publicar cambios en producción (`commit` + `push`), pulsar **Comprobar** en Bing Webmaster Tools y enviar el mapa del sitio `https://etronic.com.mx/sitemap.xml`.
   - *Beneficio:* Indexa en **Bing, DuckDuckGo, Yahoo, Ecosia, Microsoft Copilot y ChatGPT Search**.
-- [ ] **2.2 Disparar notificación instantánea IndexNow (una vez en producción el `.txt`)**
-  - Ejecutar desde terminal local para notificar `/` y `/planificador` al instante:
-    ```powershell
-    $body = @{
-      host = "etronic.com.mx"
-      key = "8f3c9b2e4d1a7c605e82a914b7d3c6f0"
-      keyLocation = "https://etronic.com.mx/8f3c9b2e4d1a7c605e82a914b7d3c6f0.txt"
-      urlList = @("https://etronic.com.mx/", "https://etronic.com.mx/planificador")
-    } | ConvertTo-Json
-    Invoke-RestMethod -Method Post -Uri "https://api.indexnow.org/indexnow" -ContentType "application/json; charset=utf-8" -Body $body
-    ```
-- [ ] **2.3 Alta en Bing Places for Business** (`https://www.bingplaces.com`)
+- [x] **2.2 Disparar notificación instantánea IndexNow (una vez en producción el `.txt`)**
+  - Ejecutado el `2026-11-18` contra `https://api.indexnow.org/indexnow` con resultado **`202 Accepted`** para `https://etronic.com.mx/` y `https://etronic.com.mx/planificador`.
+- [ ] **2.3 Alta en Bing Places for Business** (`https://www.bingplaces.com`) *(Requiere cuenta Microsoft del propietario)*
   - Registrar **ETRONIC**, teléfono/WhatsApp, horario, área de cobertura remota en México y enlace a `https://etronic.com.mx`.
-- [ ] **2.4 Alta en Apple Business Connect** (`https://businessconnect.apple.com`)
+- [ ] **2.4 Alta en Apple Business Connect** (`https://businessconnect.apple.com`) *(Requiere Apple ID del propietario)*
   - Registrar marca con Apple ID para aparecer en **Apple Maps, Siri y Spotlight**.
 
 ---
