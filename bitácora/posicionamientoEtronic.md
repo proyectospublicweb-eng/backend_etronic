@@ -18,8 +18,9 @@
   - Etiqueta `<link rel="canonical" href="https://etronic.com.mx/" />` y verificación `<meta name="msvalidate.01" content="5DBCEC29BEBF5D8A9654710D6A301AFE" />`.
   - Título, descripción, palabras clave y esquema **JSON-LD Schema.org** (`Organization` + `ProfessionalService` + catálogo de servicios).
   - Contenido semántico inicial completo dentro de `<div id="root">` (títulos `H1`/`H2` y servicios reales de ETRONIC visibles antes de ejecutar JS) + `AddDefaultCharset UTF-8` en `.htaccess` para que Bingbot lea contenido rico desde la primera petición HTTP.
-- [ ] **1.5 Desplegar ajuste final UTF-8 + contenido HTML inicial en `etronic.com.mx`**
-  - Confirmar `commit` + `push` de `Frontend` (los archivos previos `robots.txt`, `sitemap.xml`, llave IndexNow y `msvalidate.01` ya están en vivo `200 OK`).
+- [x] **1.5 Desplegar ajuste final UTF-8 + contenido HTML inicial en `etronic.com.mx`**
+  - Publicado commit `22ede3c` (`Frontend`) y verificado en vivo el `2026-11-18` simulando `bingbot/2.0`: `200 OK`, `8,748` bytes con `<h1>` semántico inicial, servicios, `msvalidate.01`, `robots.txt` y `sitemap.xml` activos.
+  - Nueva notificación IndexNow enviada solo para `https://etronic.com.mx/` (`200 OK`).
 
 ---
 
@@ -35,3 +36,11 @@
   - Confirmar en **Mapas del sitio** que `sitemap.xml` aparezca con estado **Correcto** y `1` URL descubierta (`https://etronic.com.mx/`).
   - En **Inspección de URL**, probar **`https://etronic.com.mx/`** (botón *Prueba URL activa*) y comprobar que reemplace la caché antigua (`19 May 2025`) y quede sin errores en el apartado **Índice**.
   - Revisar **Recommendations / Explorador de sitios** para confirmar 0 advertencias técnicas de SEO/GEO y validar búsqueda `site:etronic.com.mx` en Bing / DuckDuckGo / Yahoo.
+
+
+---
+
+## Alternativa Futura (Opcional · De Pago)
+
+- [ ] **Microsoft Advertising (Bing Ads)** *(Opcional · De pago)*
+  - Campaña de búsqueda dirigida a usuarios Edge/Windows buscando *"soporte Contpaqi remoto"*, *"renta servidores virtuales"* o *"implementación IA empresas"* hacia `https://etronic.com.mx`.
